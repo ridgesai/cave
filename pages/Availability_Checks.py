@@ -10,7 +10,11 @@ import os
 load_dotenv() 
 
 # Get the absolute path to the database
-db_path = os.getenv("ABSOLUTE_PATH_TO_DATABASE")
+try:
+    db_path = os.getenv("ABSOLUTE_PATH_TO_SUBNET_REPO") + "/validator.db"
+except Exception as e:
+    st.error("You did not set your environment variable")
+    st.stop()
 
 st.set_page_config(layout="wide")
 
@@ -63,12 +67,19 @@ def get_all_availability_checks(db_path: str = db_path) -> List[AvailabilityChec
             cursor.execute("SELECT * FROM availability_checks")
             return [AvailabilityCheck.from_db_row(row) for row in cursor.fetchall()]
     except Exception as e:
-        st.error(f"Error reading availability checks: {e}")
-        return []
+        st.error(f"Error reading from validator.db ({e})")
+        st.info("Did you forget to set the environment variable? Cave is currently searching for " + db_path)
+        st.info("If you are sure you have set the environment variable, please check that the database file exists at " + db_path)
+        st.info("If you are sure the file exists, please ensure a miner and validator are running")
+        st.stop()
 
 # Get and process availability checks
 availability_checks = get_all_availability_checks()
 availability_checks_dict = [check.to_dict() for check in availability_checks]
+
+if len(availability_checks) == 0:
+    st.info("No availability checks found in " + db_path + ". Please ensure a miner and validator are running.")
+    st.stop()
 
 # Display availability checks table
 st.subheader('Availability checks table')

@@ -7,27 +7,36 @@ from dotenv import load_dotenv
 load_dotenv() 
 
 # Returns the path to the logs.json file
-logs_file_path = os.getenv("ABSOLUTE_PATH_TO_LOGS_JSON")
+try:
+    logs_file_path = os.getenv("ABSOLUTE_PATH_TO_SUBNET_REPO") + "/logging/logs.json"
+except Exception as e:
+    st.error("You did not set your environment variable")
+    st.stop()
 
 # Returns all logs from logs.json as a list of dictionaries
 def get_logs():
     try:
-        if os.path.exists(logs_file_path):
-            with open(logs_file_path, 'r') as f:
-                return json.load(f)
+        with open(logs_file_path, 'r') as f:
+            return json.load(f)
     except Exception as e:
-        st.error(f"Error reading logs: {e}")
-    return []
+        st.error(f"Error reading logs: ({e})")
+        st.info("Did you forget to set the environment variable? Cave is currently searching for " + logs_file_path)
+        st.info("If you are sure you have set the environment variable, please check that the logging file exists at " + logs_file_path)
+        st.info("If you are sure the file exists, please ensure a miner and validator are running")
+        st.stop()
 
 # Clears all logs by resetting logs.json to an empty array
 def clear_logs():
     """Clear all logs by resetting logs.json to an empty array."""
-    logs_file_path
     try:
         with open(logs_file_path, 'w') as f:
             json.dump([], f)
     except Exception as e:
-        print(f"Error clearing log file: {e}")
+        st.error(f"Error clearing log file ({e})")
+        st.info("Did you forget to set the environment variable? Cave is currently searching for " + logs_file_path)
+        st.info("If you are sure you have set the environment variable, please check that the logging file exists at " + logs_file_path)
+        st.info("If you are sure the file exists, please ensure a miner and validator are running")
+        st.stop()
 
 # Returns the levelname of a log (without the ANSI color codes)
 def get_log_levelname(log):
@@ -120,4 +129,6 @@ with log_container.container():
     
     # Output the number of logs that match the selected filters
     st.divider()
-    st.text(f"Displayed {num_logs_ouputted} logs that match the selected filters")
+    st.text(f"Displayed {num_logs_ouputted} logs that match the selected filters (if applicable)")
+    if num_logs_ouputted == 0:
+        st.info("No logs appeared. Please update your filters (or you may have no logs)")

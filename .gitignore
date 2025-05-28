@@ -7,3 +7,6 @@ __pycache__
 # Egg info
 *.egg-info
 
+# Environment variables
+.env
+

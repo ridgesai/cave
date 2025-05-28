@@ -9,8 +9,12 @@ import os
 # Load environment variables
 load_dotenv() 
 
-# Get the absolute path to the database
-db_path = os.getenv("ABSOLUTE_PATH_TO_DATABASE")
+# Get the absolute path to the database 
+try:
+    db_path = os.getenv("ABSOLUTE_PATH_TO_SUBNET_REPO") + "/validator.db"
+except Exception as e:
+    st.error("You did not set your environment variable")
+    st.stop()
 
 st.set_page_config(layout="wide")
 
@@ -78,12 +82,19 @@ def get_all_challenge_assignments(db_path: str = db_path) -> List[ChallengeAssig
             cursor.execute("SELECT * FROM challenge_assignments")
             return [ChallengeAssignment.from_db_row(row) for row in cursor.fetchall()]
     except Exception as e:
-        st.error(f"Error reading challenge assignments: {e}")
-        return []
+        st.error(f"Error reading from validator.db ({e})")
+        st.info("Did you forget to set the environment variable? Cave is currently searching for " + db_path)
+        st.info("If you are sure you have set the environment variable, please check that the database file exists at " + db_path)
+        st.info("If you are sure the file exists, please ensure a miner and validator are running")
+        st.stop()
 
 # Get all challenge assignments
 assignments = get_all_challenge_assignments()
 assignments_dict = [assignment.to_dict() for assignment in assignments]
+
+if len(assignments) == 0:
+    st.info("No challenge assignments found in " + db_path + ". Please ensure a miner and validator are running.")
+    st.stop()
 
 st.subheader('Challenge assignments table')
 st.dataframe(
