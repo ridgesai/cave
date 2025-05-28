@@ -37,7 +37,7 @@
 
 4. **Launch the dashboard** 🚀
    ```bash
-   streamlit run Home.py
+   streamlit run Cave.py
    ```
 
 ## 🎯 Features
