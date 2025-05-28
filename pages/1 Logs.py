@@ -60,7 +60,20 @@ def get_log_color(log_levelname):
 def output_log(log):
     log_levelname = get_log_levelname(log)
     log_color = get_log_color(log_levelname)
-    st.markdown(f"<span style='color: gray; font-style: italic;'>{log['timestamp']}</span> — <span style='color: {log_color};'>**{log_levelname}**</span> from `{log['pathname'] + ':' + str(log['lineno'])}`", unsafe_allow_html=True)
+    
+    # Get active coroutines and format them
+    active_coroutines = []
+    if 'active_coroutines' in log:
+        for coroutine in log['active_coroutines']:
+            if coroutine == 'evaluation_task':
+                active_coroutines.append(f"[{coroutine.upper()} loop #{log['eval_loop_num']}]")
+            else:
+                active_coroutines.append(f"[{coroutine.upper()}]")
+    
+    # Add coroutines to the output if any are active
+    coroutine_text = " " + " ".join(active_coroutines) if active_coroutines else ""
+    
+    st.markdown(f"<span style='color: gray; font-style: italic;'>{log['timestamp']}</span> — <span style='color: {log_color};'>**{log_levelname}**</span> from `{log['pathname'] + ':' + str(log['lineno'])}`<span style='color: aqua;'>{coroutine_text}</span>", unsafe_allow_html=True)
     
     # Check if message is valid JSON, and output accordingly
     try:
@@ -99,36 +112,45 @@ with log_container.container():
     # Get a list of all unique files and levels from the logs
     st.session_state.files = set([log['filename'] for log in st.session_state.logs])
     st.session_state.levels = set([get_log_levelname(log) for log in st.session_state.logs])
+    st.session_state.coroutines = set([coroutine for log in st.session_state.logs for coroutine in log['active_coroutines']])
+    st.session_state.loop_nums = set([log['eval_loop_num'] for log in st.session_state.logs if log['eval_loop_num'] != 0])
 
     # Sidebar for filters and clearing logs
     with st.sidebar:
         st.session_state.file_selection = st.selectbox("Filter by file", st.session_state.files, index=None)
         st.session_state.level_selection = st.selectbox("Filter by level", st.session_state.levels, index=None)
+        st.session_state.coroutine_selection = st.multiselect("Filter by coroutine", st.session_state.coroutines)
+        st.session_state.loop_num_selection = st.selectbox("Filter by evaluation loop number", st.session_state.loop_nums, index=None)
         if st.button("Clear existing logs", type="primary"):
             clear_logs()
             st.rerun()
 
     # Title and refresh text
-    st.subheader("Validator Logs")
+    st.subheader("Subnet Logs")
     st.text("Press R to refresh to see latest logs (working on a fix for this)")
 
     # Display the selected filters
+    st.divider()
     if st.session_state.file_selection is not None:
         st.markdown(f"Displaying logs from `{st.session_state.file_selection}`")
     if st.session_state.level_selection is not None:
         log_color = get_log_color(st.session_state.level_selection)
         st.markdown(f"Displaying logs with level <span style='color: {log_color};'>**{st.session_state.level_selection}**</span>", unsafe_allow_html=True)
+    if st.session_state.coroutine_selection != []:
+        st.markdown(f"Displaying logs that occured during coroutine(s) <span style='color: aqua;'>**{' or '.join(['[' + c.upper() + ']' for c in st.session_state.coroutine_selection])}**</span>", unsafe_allow_html=True)
+    if st.session_state.loop_num_selection is not None:
+        st.markdown(f"Displaying logs that occured during loop number <span style='color: aquamarine;'>**{st.session_state.loop_num_selection}**</span>", unsafe_allow_html=True)
     st.divider()
 
     # Display the logs that match the selected filters
     num_logs_ouputted = 0
     for log in reversed(st.session_state.logs):
-        if (st.session_state.file_selection is None or log['filename'] in st.session_state.file_selection) and (st.session_state.level_selection is None or get_log_levelname(log) in st.session_state.level_selection):
+        if (st.session_state.file_selection is None or log['filename'] in st.session_state.file_selection) and (st.session_state.level_selection is None or get_log_levelname(log) in st.session_state.level_selection) and (st.session_state.coroutine_selection == [] or any(coroutine in log['active_coroutines'] for coroutine in st.session_state.coroutine_selection)) and (st.session_state.loop_num_selection is None or (log['eval_loop_num'] == st.session_state.loop_num_selection and 'evaluation_task' in log['active_coroutines'])):
             output_log(log)
             num_logs_ouputted += 1
     
     # Output the number of logs that match the selected filters
     st.divider()
-    st.text(f"Displayed {num_logs_ouputted} logs that match the selected filters (if applicable)")
+    st.text(f"Displayed {num_logs_ouputted} logs out of {len(st.session_state.logs)} total logs that match the selected filters (if applicable)")
     if num_logs_ouputted == 0:
         st.info("No logs appeared. Please update your filters (or you may have no logs)")
