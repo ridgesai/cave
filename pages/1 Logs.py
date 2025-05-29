@@ -1,46 +1,55 @@
 import streamlit as st
 import json
 import os
+import sqlite3
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv() 
 
-# Returns the path to the logs.json file
+# Returns the path to the logs.db file
 try:
-    logs_file_path = os.getenv("ABSOLUTE_PATH_TO_SUBNET_REPO") + "/logging/logs.json"
+    logs_db_path = os.getenv("ABSOLUTE_PATH_TO_SUBNET_REPO") + "/logs.db"
 except Exception as e:
     st.error("You did not set your environment variable")
     st.stop()
 
-# Returns all logs from logs.json as a list of dictionaries
+# Returns all logs from logs.db as a list of dictionaries
 def get_logs():
     try:
-        with open(logs_file_path, 'r') as f:
-            return json.load(f)
+        with sqlite3.connect(logs_db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM logs")
+            columns = [description[0] for description in cursor.description]
+            logs = []
+            for row in cursor.fetchall():
+                log = dict(zip(columns, row))
+                # Parse JSON fields once when loading from database
+                if 'active_coroutines' in log:
+                    log['active_coroutines'] = json.loads(log['active_coroutines'])
+                logs.append(log)
+            return logs
     except Exception as e:
         st.error(f"Error reading logs: ({e})")
-        st.info("Did you forget to set the environment variable? Cave is currently searching for " + logs_file_path)
-        st.info("If you are sure you have set the environment variable, please check that the logging file exists at " + logs_file_path)
-        st.info("If you are sure the file exists, please ensure a miner and validator are running")
+        st.info("Did you forget to set your environment variable? Cave is currently searching for " + logs_db_path)
+        st.info("If you are sure you have set the environment variable, please check that the logging database exists at " + logs_db_path)
+        st.info("If you are sure the database exists, please ensure a miner and validator are running")
         st.stop()
 
-# Clears all logs by resetting logs.json to an empty array
+# Clears all logs by deleting all rows from the logs table
 def clear_logs():
-    """Clear all logs by resetting logs.json to an empty array."""
+    """Clear all logs by deleting all rows from the logs table."""
     try:
-        with open(logs_file_path, 'w') as f:
-            json.dump([], f)
+        with sqlite3.connect(logs_db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM logs")
+            conn.commit()
     except Exception as e:
-        st.error(f"Error clearing log file ({e})")
-        st.info("Did you forget to set the environment variable? Cave is currently searching for " + logs_file_path)
-        st.info("If you are sure you have set the environment variable, please check that the logging file exists at " + logs_file_path)
-        st.info("If you are sure the file exists, please ensure a miner and validator are running")
+        st.error(f"Error clearing log database ({e})")
+        st.info("Did you forget to set your environment variable? Cave is currently searching for " + logs_db_path)
+        st.info("If you are sure you have set the environment variable, please check that the logging database exists at " + logs_db_path)
+        st.info("If you are sure the database exists, please ensure a miner and validator are running")
         st.stop()
-
-# Returns the levelname of a log (without the ANSI color codes)
-def get_log_levelname(log):
-    return log['levelname'][9:-4]
 
 # Returns the desired color of a log levelname
 def get_log_color(log_levelname):
@@ -58,7 +67,7 @@ def get_log_color(log_levelname):
 
 # Outputs a log to the dashboard, displays JSON nicely if possible
 def output_log(log):
-    log_levelname = get_log_levelname(log)
+    log_levelname = log['levelname']
     log_color = get_log_color(log_levelname)
     
     # Get active coroutines and format them
@@ -106,12 +115,12 @@ if "level_selection" not in st.session_state:
 
 # Display logs with log container
 with log_container.container():
-    # Get logs from logs.json
+    # Get logs from logs.db
     st.session_state.logs = get_logs()
 
     # Get a list of all unique files and levels from the logs
     st.session_state.files = set([log['filename'] for log in st.session_state.logs])
-    st.session_state.levels = set([get_log_levelname(log) for log in st.session_state.logs])
+    st.session_state.levels = set([log['levelname'] for log in st.session_state.logs])
     st.session_state.coroutines = set([coroutine for log in st.session_state.logs for coroutine in log['active_coroutines']])
     st.session_state.loop_nums = set([log['eval_loop_num'] for log in st.session_state.logs if log['eval_loop_num'] != 0])
 
@@ -145,7 +154,10 @@ with log_container.container():
     # Display the logs that match the selected filters
     num_logs_ouputted = 0
     for log in reversed(st.session_state.logs):
-        if (st.session_state.file_selection is None or log['filename'] in st.session_state.file_selection) and (st.session_state.level_selection is None or get_log_levelname(log) in st.session_state.level_selection) and (st.session_state.coroutine_selection == [] or any(coroutine in log['active_coroutines'] for coroutine in st.session_state.coroutine_selection)) and (st.session_state.loop_num_selection is None or (log['eval_loop_num'] == st.session_state.loop_num_selection and 'evaluation_task' in log['active_coroutines'])):
+        if (st.session_state.file_selection is None or log['filename'] in st.session_state.file_selection) and \
+           (st.session_state.level_selection is None or log['levelname'] in st.session_state.level_selection) and \
+           (st.session_state.coroutine_selection == [] or any(coroutine in log['active_coroutines'] for coroutine in st.session_state.coroutine_selection)) and \
+           (st.session_state.loop_num_selection is None or (log['eval_loop_num'] == st.session_state.loop_num_selection and 'evaluation_task' in log['active_coroutines'])):
             output_log(log)
             num_logs_ouputted += 1
     
