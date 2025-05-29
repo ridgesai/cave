@@ -93,7 +93,7 @@ assignments = get_all_challenge_assignments()
 assignments_dict = [assignment.to_dict() for assignment in assignments]
 
 if len(assignments) == 0:
-    st.info("No challenge assignments found in " + db_path + ". Please ensure a miner and validator are running.")
+    st.info("No challenge assignments found in " + db_path + ". Please ensure a miner and validator are running. It may be the case that everything is fine, but your challenge_assignments table is empty.")
     st.stop()
 
 st.subheader('Challenge assignments table')

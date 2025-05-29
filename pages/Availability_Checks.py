@@ -78,7 +78,7 @@ availability_checks = get_all_availability_checks()
 availability_checks_dict = [check.to_dict() for check in availability_checks]
 
 if len(availability_checks) == 0:
-    st.info("No availability checks found in " + db_path + ". Please ensure a miner and validator are running.")
+    st.info("No availability checks found in " + db_path + ". Please ensure a miner and validator are running. It may be the case that everything is fine, but your availability_checks table is empty.")
     st.stop()
 
 # Display availability checks table
