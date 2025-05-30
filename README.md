@@ -31,7 +31,7 @@
    # Copy example env file
    cp .env.example .env
    
-   # Edit .env and add your local subtensor path (absolute)
+   # Edit .env and add your local subnet repo path (absolute)
    # Remember: NO trailing slash! 🚫
    ```
 
