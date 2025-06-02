@@ -9,7 +9,7 @@ load_dotenv()
 
 # Returns the path to the logs.db file
 try:
-    logs_db_path = os.getenv("ABSOLUTE_PATH_TO_SUBNET_REPO") + "/logs.db"
+    logs_db_path = os.getenv("ABSOLUTE_PATH_TO_SUBNET_REPO") + "/logging.db"
 except Exception as e:
     st.error("You did not set your environment variable")
     st.stop()
@@ -119,7 +119,7 @@ with log_container.container():
     st.session_state.logs = get_logs()
 
     # Get a list of all unique files and levels from the logs
-    st.session_state.files = set([log['filename'] for log in st.session_state.logs])
+    st.session_state.files = set([log['pathname'] for log in st.session_state.logs])
     st.session_state.levels = set([log['levelname'] for log in st.session_state.logs])
     st.session_state.coroutines = set([coroutine for log in st.session_state.logs for coroutine in log['active_coroutines']])
     st.session_state.loop_nums = set([log['eval_loop_num'] for log in st.session_state.logs if log['eval_loop_num'] != 0])
@@ -154,7 +154,7 @@ with log_container.container():
     # Display the logs that match the selected filters
     num_logs_ouputted = 0
     for log in reversed(st.session_state.logs):
-        if (st.session_state.file_selection is None or log['filename'] in st.session_state.file_selection) and \
+        if (st.session_state.file_selection is None or log['pathname'] in st.session_state.file_selection) and \
            (st.session_state.level_selection is None or log['levelname'] in st.session_state.level_selection) and \
            (st.session_state.coroutine_selection == [] or any(coroutine in log['active_coroutines'] for coroutine in st.session_state.coroutine_selection)) and \
            (st.session_state.loop_num_selection is None or (log['eval_loop_num'] == st.session_state.loop_num_selection and 'evaluation_task' in log['active_coroutines'])):
