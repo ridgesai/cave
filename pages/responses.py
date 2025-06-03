@@ -111,6 +111,10 @@ def get_all_responses(db_path: str = db_path) -> List[Response]:
 
 # Get and process responses
 responses = get_all_responses()
+
+for response in responses:
+    response.processing_time = str(response.completed_at - response.received_at).split('.')[0]
+
 responses_dict = [response.to_dict() for response in responses]
 
 if len(responses) == 0:
