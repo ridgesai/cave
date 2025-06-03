@@ -22,6 +22,7 @@ class Response:
         self,
         response_id: Optional[int] = None,  # Optional because it's auto-incrementing
         challenge_id: str = None,
+        challenge_type: str = None,
         miner_hotkey: str = None,
         node_id: Optional[int] = None,
         processing_time: Optional[float] = None,
@@ -34,6 +35,7 @@ class Response:
     ):
         self.response_id = response_id
         self.challenge_id = challenge_id
+        self.challenge_type = challenge_type
         self.miner_hotkey = miner_hotkey
         self.node_id = node_id
         self.processing_time = processing_time
@@ -49,6 +51,7 @@ class Response:
         return {
             'response_id': self.response_id,
             'challenge_id': self.challenge_id,
+            'challenge_type': self.challenge_type,
             'miner_hotkey': self.miner_hotkey,
             'node_id': self.node_id,
             'processing_time': self.processing_time,
@@ -66,15 +69,16 @@ class Response:
         return cls(
             response_id=row[0],
             challenge_id=row[1],
-            miner_hotkey=row[2],
-            node_id=row[3],
-            processing_time=float(row[4]) if row[4] is not None else None,
-            received_at=datetime.fromisoformat(row[5]) if row[5] else None,
-            completed_at=datetime.fromisoformat(row[6]) if row[6] else None,
-            evaluated=bool(row[7]),
-            score=float(row[8]) if row[8] is not None else None,
-            evaluated_at=datetime.fromisoformat(row[9]) if row[9] else None,
-            response_patch=row[10]
+            challenge_type=row[2],
+            miner_hotkey=row[3],
+            node_id=row[4],
+            processing_time=float(row[5]) if row[5] is not None else None,
+            received_at=datetime.fromisoformat(row[6]) if row[6] else None,
+            completed_at=datetime.fromisoformat(row[7]) if row[7] else None,
+            evaluated=bool(row[8]),
+            score=float(row[9]) if row[9] is not None else None,
+            evaluated_at=datetime.fromisoformat(row[10]) if row[10] else None,
+            response_patch=row[11]
         )
 
 def get_all_responses(db_path: str = db_path) -> List[Response]:
@@ -90,11 +94,17 @@ def get_all_responses(db_path: str = db_path) -> List[Response]:
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM responses")
+            cursor.execute("""
+                SELECT r.response_id, r.challenge_id, c.challenge_type, r.miner_hotkey, 
+                       r.node_id, r.processing_time, r.received_at, r.completed_at, 
+                       r.evaluated, r.score, r.evaluated_at, r.response_patch
+                FROM responses r
+                JOIN challenges c ON r.challenge_id = c.challenge_id
+            """)
             return [Response.from_db_row(row) for row in cursor.fetchall()]
     except Exception as e:
         st.error(f"Error reading from validator.db ({e})")
-        st.info("Did you forget to set the environment variable? Cave is currently searching for " + db_path)
+        st.info("Did you forget to set your environment variable? Cave is currently searching for " + db_path)
         st.info("If you are sure you have set the environment variable, please check that the database file exists at " + db_path)
         st.info("If you are sure the file exists, please ensure a miner and validator are running")
         st.stop()
@@ -111,7 +121,7 @@ if len(responses) == 0:
 st.subheader('Responses table')
 responses_df = st.dataframe(
     responses_dict,
-    column_order=['response_id', 'challenge_id', 'miner_hotkey', 'node_id', 'processing_time', 
+    column_order=['response_id', 'challenge_id', 'challenge_type', 'miner_hotkey', 'node_id', 'processing_time', 
                  'received_at', 'completed_at', 'evaluated', 'score', 'evaluated_at', 'response_patch'],
     on_select="rerun",
     selection_mode="single-row",
@@ -121,6 +131,7 @@ responses_df = st.dataframe(
 try:
     row_num = responses_df['selection']['rows'][0]
     selected_response = responses_dict[row_num]
+    st.subheader('Response patch')
     st.code(selected_response['response_patch'], language='diff')
 except:
     st.write("Select a response to see the patch")
