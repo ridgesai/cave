@@ -76,7 +76,7 @@ def get_all_regression_challenges(db_path: str = db_path) -> List[RegressionChal
                        rc.repository_url, rc.commit_hash, rc.context_file_paths
                 FROM regression_challenges rc
                 JOIN challenges c ON rc.challenge_id = c.challenge_id
-                WHERE c.challenge_type = 'regression'
+                WHERE c.type = 'regression'
             """)
             return [RegressionChallenge.from_db_row(row) for row in cursor.fetchall()]
     except Exception as e:

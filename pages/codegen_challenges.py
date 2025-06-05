@@ -80,7 +80,7 @@ def get_all_codegen_challenges(db_path: str = db_path) -> List[CodegenChallenge]
                        cc.dynamic_checklist, cc.repository_url, cc.commit_hash, cc.context_file_paths
                 FROM codegen_challenges cc
                 JOIN challenges c ON cc.challenge_id = c.challenge_id
-                WHERE c.challenge_type = 'codegen'
+                WHERE c.type = 'codegen'
             """)
             return [CodegenChallenge.from_db_row(row) for row in cursor.fetchall()]
     except Exception as e:
